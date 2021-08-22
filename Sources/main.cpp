@@ -15,5 +15,5 @@ int main(/*int argc, char * argv[]*/) {
 
     ExecutionerLight exec;
 
-    return exec.run();
+    return exec.runModelLoading();
 }

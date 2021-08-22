@@ -1,10 +1,12 @@
 // Local Headers
 #include "ExecutionerLight.h"
 #include "ShaderLoader.h"
+
 #include "utils.h"
 #include "camera.h"
 #include "Material.h"
 #include "Light.h"
+#include "Model.h"
 
 // System Headers
 #include <glad/glad.h>
@@ -14,9 +16,6 @@
 #include <cstdio>
 #include <cstdlib>
 #include <iostream>
-
-#define STB_IMAGE_IMPLEMENTATION 
-
 
 #ifdef WINBUILD
 #include <windows.h>
@@ -31,18 +30,20 @@ void framebuffer_size_callback_light(GLFWwindow* window, int width, int height);
 void mouse_callback_light(GLFWwindow* window, double xpos, double ypos);
 void scroll_callback_light(GLFWwindow* window, double xoffset, double yoffset);
 
-int ExecutionerLight::run() {
+int ExecutionerLight::runModelLoading()
+{
+    // set the global instance of ExecutionerLight
     exec = this;
 
     // camera
-    this->_camera = Camera(glm::vec3(0.0f, 0.0f, 3.0f));
-    this->_lastX = mWidth / 2.0f;
-    this->_lastY = mHeight / 2.0f;
-    this->_firstMouse = true;
+    camera = Camera(glm::vec3(0.0f, 0.0f, 3.0f));
+    lastX = mWidth / 2.0f;
+    lastY = mHeight / 2.0f;
+    firstMouse = true;
 
     // timing
-    this->_deltaTime = 0.0f;	// time between current frame and last frame
-    this->_lastFrame = 0.0f;
+    deltaTime = 0.0f;	// time between current frame and last frame
+    lastFrame = 0.0f;
 
     // lighting
     glm::vec3 lightPos(1.2f, 1.0f, 2.0f);
@@ -60,7 +61,99 @@ int ExecutionerLight::run() {
     // configure global opengl state
     glEnable(GL_DEPTH_TEST);
 
-    // build and compile our shader zprogram
+    // build and compile shaders
+    // -------------------------
+    Shader ourShader(utils::getPath("model_loading.vs", utils::fileType::SHADER).c_str(),
+        utils::getPath("model_loading.fs", utils::fileType::SHADER).c_str());
+
+    // load models
+    // -----------
+    Model ourModel(utils::getPath("backpack/backpack.obj", utils::fileType::MESH).c_str());
+    
+
+
+    // draw in wireframe
+    //glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+
+    // render loop
+    // -----------
+    while (!glfwWindowShouldClose(glfwManager.GetWindow()))
+    {
+        // per-frame time logic
+        // --------------------
+        float currentFrame = glfwGetTime();
+        deltaTime = currentFrame - lastFrame;
+        lastFrame = currentFrame;
+
+        // input
+        // -----
+        processInputs(&glfwManager);
+
+        // render
+        // ------
+        glClearColor(0.05f, 0.05f, 0.05f, 1.0f);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+        // don't forget to enable shader before setting uniforms
+        ourShader.use();
+
+        // view/projection transformations
+        glm::mat4 projection = glm::perspective(glm::radians(camera.Zoom), (float)mWidth / (float)mHeight, 0.1f, 100.0f);
+        glm::mat4 view = camera.GetViewMatrix();
+        ourShader.setMat4("projection", projection);
+        ourShader.setMat4("view", view);
+
+        // render the loaded model
+        glm::mat4 model = glm::mat4(1.0f);
+        model = glm::translate(model, glm::vec3(0.0f, 0.0f, 0.0f)); // translate it down so it's at the center of the scene
+        model = glm::scale(model, glm::vec3(1.0f, 1.0f, 1.0f));	// it's a bit too big for our scene, so scale it down
+        ourShader.setMat4("model", model);
+        ourModel.Draw(ourShader);
+
+
+        // glfw: swap buffers and poll IO events (keys pressed/released, mouse moved etc.)
+        // -------------------------------------------------------------------------------
+        glfwSwapBuffers(glfwManager.GetWindow());
+        glfwPollEvents();
+    }
+
+    // glfw: terminate, clearing all previously allocated GLFW resources.
+    // ------------------------------------------------------------------
+    glfwTerminate();
+    return 0;
+}
+
+int ExecutionerLight::run() {
+    // set the global instance of ExecutionerLight
+    exec = this;
+
+    // camera
+    camera = Camera(glm::vec3(0.0f, 0.0f, 3.0f));
+    lastX = mWidth / 2.0f;
+    lastY = mHeight / 2.0f;
+    firstMouse = true;
+
+    // timing
+    deltaTime = 0.0f;	// time between current frame and last frame
+    lastFrame = 0.0f;
+
+    // lighting
+    glm::vec3 lightPos(1.2f, 1.0f, 2.0f);
+    glm::vec3 lightDir(-0.2f, -1.0f, -0.3f);
+
+    GLFWManager glfwManager(mWidth, mHeight, "OpenGL");
+
+    glfwSetFramebufferSizeCallback(glfwManager.GetWindow(), framebuffer_size_callback_light);
+    glfwSetCursorPosCallback(glfwManager.GetWindow(), mouse_callback_light);
+    glfwSetScrollCallback(glfwManager.GetWindow(), scroll_callback_light);
+
+    // tell GLFW to capture our mouse
+    glfwSetInputMode(glfwManager.GetWindow(), GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+
+    // configure global opengl state
+    glEnable(GL_DEPTH_TEST);
+
+    // build and compile our shader program
     // ------------------------------------
     Shader lightingShader(utils::getPath("materials_diffuse_map.vs", utils::fileType::SHADER).c_str(),
         utils::getPath("multiple_lights.fs", utils::fileType::SHADER).c_str());
@@ -185,8 +278,8 @@ int ExecutionerLight::run() {
         // per-frame time logic
         // --------------------
         float currentFrame = glfwGetTime();
-        _deltaTime = currentFrame - _lastFrame;
-        _lastFrame = currentFrame;
+        deltaTime = currentFrame - lastFrame;
+        lastFrame = currentFrame;
 
         // input
         // -----
@@ -198,7 +291,7 @@ int ExecutionerLight::run() {
 
         // be sure to activate shader when setting uniforms/drawing objects
         lightingShader.use();
-        lightingShader.setVec3("viewPos", _camera.Position);
+        lightingShader.setVec3("viewPos", camera.Position);
         lightingShader.setFloat("material.shininess", 32.0f);
 
         /*
@@ -256,8 +349,8 @@ int ExecutionerLight::run() {
             glUniform1f(glGetUniformLocation(lightingShader.Program, "pointLights[3].linear"), 0.09);
             glUniform1f(glGetUniformLocation(lightingShader.Program, "pointLights[3].quadratic"), 0.032);		
             // SpotLight
-            glUniform3f(glGetUniformLocation(lightingShader.Program, "spotLight.position"), _camera.Position.x, _camera.Position.y, _camera.Position.z);	
-            glUniform3f(glGetUniformLocation(lightingShader.Program, "spotLight.direction"), _camera.Front.x, _camera.Front.y, _camera.Front.z);
+            glUniform3f(glGetUniformLocation(lightingShader.Program, "spotLight.position"), camera.Position.x, camera.Position.y, camera.Position.z);	
+            glUniform3f(glGetUniformLocation(lightingShader.Program, "spotLight.direction"), camera.Front.x, camera.Front.y, camera.Front.z);
             glUniform3f(glGetUniformLocation(lightingShader.Program, "spotLight.ambient"), 0.0f, 0.0f, 0.0f);	
             glUniform3f(glGetUniformLocation(lightingShader.Program, "spotLight.diffuse"), 0.8f, 0.8f, 0.0f); 
             glUniform3f(glGetUniformLocation(lightingShader.Program, "spotLight.specular"), 0.8f, 0.8f, 0.0f);
@@ -313,8 +406,8 @@ int ExecutionerLight::run() {
             glUniform1f(glGetUniformLocation(lightingShader.Program, "pointLights[3].linear"), 0.07);
             glUniform1f(glGetUniformLocation(lightingShader.Program, "pointLights[3].quadratic"), 0.017);		
             // SpotLight
-            glUniform3f(glGetUniformLocation(lightingShader.Program, "spotLight.position"), _camera.Position.x, _camera.Position.y, _camera.Position.z);	
-            glUniform3f(glGetUniformLocation(lightingShader.Program, "spotLight.direction"), _camera.Front.x, _camera.Front.y, _camera.Front.z);
+            glUniform3f(glGetUniformLocation(lightingShader.Program, "spotLight.position"), camera.Position.x, camera.Position.y, camera.Position.z);	
+            glUniform3f(glGetUniformLocation(lightingShader.Program, "spotLight.direction"), camera.Front.x, camera.Front.y, camera.Front.z);
             glUniform3f(glGetUniformLocation(lightingShader.Program, "spotLight.ambient"), 0.0f, 0.0f, 0.0f);	
             glUniform3f(glGetUniformLocation(lightingShader.Program, "spotLight.diffuse"), 0.0f, 1.0f, 0.0f); 
             glUniform3f(glGetUniformLocation(lightingShader.Program, "spotLight.specular"), 0.0f, 1.0f, 0.0f);
@@ -370,8 +463,8 @@ int ExecutionerLight::run() {
         glUniform1f(glGetUniformLocation(lightingShader.Program, "pointLights[3].linear"), 0.14);
         glUniform1f(glGetUniformLocation(lightingShader.Program, "pointLights[3].quadratic"), 0.07);		
         // SpotLight
-        glUniform3f(glGetUniformLocation(lightingShader.Program, "spotLight.position"), _camera.Position.x, _camera.Position.y, _camera.Position.z);	
-        glUniform3f(glGetUniformLocation(lightingShader.Program, "spotLight.direction"), _camera.Front.x, _camera.Front.y, _camera.Front.z);
+        glUniform3f(glGetUniformLocation(lightingShader.Program, "spotLight.position"), camera.Position.x, camera.Position.y, camera.Position.z);	
+        glUniform3f(glGetUniformLocation(lightingShader.Program, "spotLight.direction"), camera.Front.x, camera.Front.y, camera.Front.z);
         glUniform3f(glGetUniformLocation(lightingShader.Program, "spotLight.ambient"), 0.0f, 0.0f, 0.0f);	
         glUniform3f(glGetUniformLocation(lightingShader.Program, "spotLight.diffuse"), 1.0f, 1.0f, 1.0f); 
         glUniform3f(glGetUniformLocation(lightingShader.Program, "spotLight.specular"), 1.0f, 1.0f, 1.0f);
@@ -427,8 +520,8 @@ int ExecutionerLight::run() {
             glUniform1f(glGetUniformLocation(lightingShader.Program, "pointLights[3].linear"), 0.09);
             glUniform1f(glGetUniformLocation(lightingShader.Program, "pointLights[3].quadratic"), 0.032);		
             // SpotLight
-            glUniform3f(glGetUniformLocation(lightingShader.Program, "spotLight.position"), _camera.Position.x, _camera.Position.y, _camera.Position.z);	
-            glUniform3f(glGetUniformLocation(lightingShader.Program, "spotLight.direction"), _camera.Front.x, _camera.Front.y, _camera.Front.z);
+            glUniform3f(glGetUniformLocation(lightingShader.Program, "spotLight.position"), camera.Position.x, camera.Position.y, camera.Position.z);	
+            glUniform3f(glGetUniformLocation(lightingShader.Program, "spotLight.direction"), camera.Front.x, camera.Front.y, camera.Front.z);
             glUniform3f(glGetUniformLocation(lightingShader.Program, "spotLight.ambient"), 0.0f, 0.0f, 0.0f);	
             glUniform3f(glGetUniformLocation(lightingShader.Program, "spotLight.diffuse"), 1.0f, 1.0f, 1.0f); 
             glUniform3f(glGetUniformLocation(lightingShader.Program, "spotLight.specular"), 1.0f, 1.0f, 1.0f);
@@ -481,8 +574,8 @@ int ExecutionerLight::run() {
         lightingShader.setFloat("pointLights[3].linear", 0.09);
         lightingShader.setFloat("pointLights[3].quadratic", 0.032);
         // spotLight
-        lightingShader.setVec3("spotLight.position", _camera.Position);
-        lightingShader.setVec3("spotLight.direction", _camera.Front);
+        lightingShader.setVec3("spotLight.position", camera.Position);
+        lightingShader.setVec3("spotLight.direction", camera.Front);
         lightingShader.setVec3("spotLight.ambient", 0.0f, 0.0f, 0.0f);
         lightingShader.setVec3("spotLight.diffuse", 1.0f, 1.0f, 1.0f);
         lightingShader.setVec3("spotLight.specular", 1.0f, 1.0f, 1.0f);
@@ -495,8 +588,8 @@ int ExecutionerLight::run() {
        }
        }
         // view/projection transformations
-        glm::mat4 projection = glm::perspective(glm::radians(_camera.Zoom), (float)mWidth / (float)mHeight, 0.1f, 100.0f);
-        glm::mat4 view = _camera.GetViewMatrix();
+        glm::mat4 projection = glm::perspective(glm::radians(camera.Zoom), (float)mWidth / (float)mHeight, 0.1f, 100.0f);
+        glm::mat4 view = camera.GetViewMatrix();
         lightingShader.setMat4("projection", projection);
         lightingShader.setMat4("view", view);
 
@@ -561,6 +654,9 @@ int ExecutionerLight::run() {
     return 0;
 }
 
+
+
+
 // glfw: whenever the window size changed (by OS or user resize) this callback function executes
 // ---------------------------------------------------------------------------------------------
 void framebuffer_size_callback_light(GLFWwindow* window, int width, int height)
@@ -574,27 +670,27 @@ void framebuffer_size_callback_light(GLFWwindow* window, int width, int height)
 // -------------------------------------------------------
 void mouse_callback_light(GLFWwindow* window, double xpos, double ypos)
 {
-    if (exec->_firstMouse)
+    if (exec->firstMouse)
     {
-        exec->_lastX = xpos;
-        exec->_lastY = ypos;
-        exec->_firstMouse = false;
+        exec->lastX = xpos;
+        exec->lastY = ypos;
+        exec->firstMouse = false;
     }
 
-    float xoffset = xpos - exec->_lastX;
-    float yoffset = exec->_lastY - ypos; // reversed since y-coordinates go from bottom to top
+    float xoffset = xpos - exec->lastX;
+    float yoffset = exec->lastY - ypos; // reversed since y-coordinates go from bottom to top
 
-    exec->_lastX = xpos;
-    exec->_lastY = ypos;
+    exec->lastX = xpos;
+    exec->lastY = ypos;
 
-    exec->_camera.ProcessMouseMovement(xoffset, yoffset);
+    exec->camera.ProcessMouseMovement(xoffset, yoffset);
 }
 
 // glfw: whenever the mouse scroll wheel scrolls, this callback is called
 // ----------------------------------------------------------------------
 void scroll_callback_light(GLFWwindow* window, double xoffset, double yoffset)
 {
-    exec->_camera.ProcessMouseScroll(yoffset);
+    exec->camera.ProcessMouseScroll(yoffset);
 }
 
 void ExecutionerLight::processInputs(GLFWManager* glfwManager)
@@ -604,21 +700,21 @@ void ExecutionerLight::processInputs(GLFWManager* glfwManager)
             glfwManager->SetShouldClose(true);
         if (glfwManager->WasKeyPressed(GLFW_KEY_R))
         {
-            this->_camera.Position = glm::vec3(0.0f, 0.0f, 0.0f);
+            camera.Position = glm::vec3(0.0f, 0.0f, 0.0f);
             scene = SCENE::NORMAL;
         }
         if (glfwManager->WasKeyPressed(GLFW_KEY_W))
-            this->_camera.ProcessKeyboard(FORWARD, this->_deltaTime);
+            camera.ProcessKeyboard(FORWARD, deltaTime);
         if (glfwManager->WasKeyPressed(GLFW_KEY_S))
-            this->_camera.ProcessKeyboard(BACKWARD, this->_deltaTime);
+            camera.ProcessKeyboard(BACKWARD, deltaTime);
         if (glfwManager->WasKeyPressed(GLFW_KEY_A))
-            this->_camera.ProcessKeyboard(LEFT, this->_deltaTime);
+            camera.ProcessKeyboard(LEFT, deltaTime);
         if (glfwManager->WasKeyPressed(GLFW_KEY_D))
-            this->_camera.ProcessKeyboard(RIGHT, this->_deltaTime);
+            camera.ProcessKeyboard(RIGHT, deltaTime);
         if (glfwManager->WasKeyPressed(GLFW_KEY_SPACE))
-            this->_camera.ProcessKeyboard(UP, this->_deltaTime);
+            camera.ProcessKeyboard(UP, deltaTime);
         if (glfwManager->WasKeyPressed(GLFW_KEY_LEFT_SHIFT))
-            this->_camera.ProcessKeyboard(DOWN, this->_deltaTime);
+            camera.ProcessKeyboard(DOWN, deltaTime);
         if (glfwManager->WasKeyPressed(GLFW_KEY_B))
             scene = SCENE::BIOCHEMICAL;
         if (glfwManager->WasKeyPressed(GLFW_KEY_E))
@@ -629,4 +725,12 @@ void ExecutionerLight::processInputs(GLFWManager* glfwManager)
             scene = SCENE::HORROR;
         if (glfwManager->WasKeyPressed(GLFW_KEY_N))
             scene = SCENE::NORMAL;
+        if (glfwManager->WasKeyPressed(GLFW_KEY_Q))
+        {
+            wireframe = !wireframe;
+            if(wireframe)
+                glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+            else 
+                glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+        }
 }

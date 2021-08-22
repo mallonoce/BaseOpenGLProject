@@ -14,9 +14,6 @@
 #include <cstdlib>
 #include <iostream>
 
-#define STB_IMAGE_IMPLEMENTATION 
-
-
 #ifdef WINBUILD
 #include <windows.h>
 #else
@@ -676,14 +673,14 @@ int Executioner::_run5() {
     exec = this;
 
     // camera
-    this->_camera = Camera(glm::vec3(0.0f, 0.0f, 3.0f));
-    this->_lastX = mWidth / 2.0f;
-    this->_lastY = mHeight / 2.0f;
-    this->_firstMouse = true;
+    this->camera = Camera(glm::vec3(0.0f, 0.0f, 3.0f));
+    this->lastX = mWidth / 2.0f;
+    this->lastY = mHeight / 2.0f;
+    this->firstMouse = true;
 
     // timing
-    this->_deltaTime = 0.0f;	// time between current frame and last frame
-    this->_lastFrame = 0.0f;
+    this->deltaTime = 0.0f;	// time between current frame and last frame
+    this->lastFrame = 0.0f;
 
 
     GLFWManager glfwManager(mWidth, mHeight, "OpenGL");
@@ -862,22 +859,22 @@ int Executioner::_run5() {
             lastTime += 1.0;
         }
         // per-frame time logic
-        this->_deltaTime = currentTime - this->_lastFrame;
-        this->_lastFrame = currentTime;
+        this->deltaTime = currentTime - this->lastFrame;
+        this->lastFrame = currentTime;
 
         // process input
         if (glfwManager.WasKeyPressed(GLFW_KEY_ESCAPE) )
             glfwManager.SetShouldClose(true);
         if (glfwManager.WasKeyPressed(GLFW_KEY_R))
-            this->_camera.Position = glm::vec3(0.0f, 0.0f, 0.0f);
+            this->camera.Position = glm::vec3(0.0f, 0.0f, 0.0f);
         if (glfwManager.WasKeyPressed(GLFW_KEY_W))
-            this->_camera.ProcessKeyboard(FORWARD, this->_deltaTime);
+            this->camera.ProcessKeyboard(FORWARD, this->deltaTime);
         if (glfwManager.WasKeyPressed(GLFW_KEY_S))
-            this->_camera.ProcessKeyboard(BACKWARD, this->_deltaTime);
+            this->camera.ProcessKeyboard(BACKWARD, this->deltaTime);
         if (glfwManager.WasKeyPressed(GLFW_KEY_A))
-            this->_camera.ProcessKeyboard(LEFT, this->_deltaTime);
+            this->camera.ProcessKeyboard(LEFT, this->deltaTime);
         if (glfwManager.WasKeyPressed(GLFW_KEY_D))
-            this->_camera.ProcessKeyboard(RIGHT, this->_deltaTime);
+            this->camera.ProcessKeyboard(RIGHT, this->deltaTime);
 
 
         // render
@@ -895,7 +892,7 @@ int Executioner::_run5() {
         glBindVertexArray(VAO);
 
         // Set view matrix
-        glm::mat4 view = this->_camera.GetViewMatrix();
+        glm::mat4 view = this->camera.GetViewMatrix();
         ourShader.setMat4("view", view);
 
         // Set model matrix and render all the cubes
@@ -932,25 +929,25 @@ int Executioner::_run5() {
 // -------------------------------------------------------
 void mouse_callback(GLFWwindow* window, double xpos, double ypos)
 {
-    if (exec->_firstMouse)
+    if (exec->firstMouse)
     {
-        exec->_lastX = xpos;
-        exec->_lastY = ypos;
-        exec->_firstMouse = false;
+        exec->lastX = xpos;
+        exec->lastY = ypos;
+        exec->firstMouse = false;
     }
 
-    float xoffset = xpos - exec->_lastX;
-    float yoffset = exec->_lastY - ypos; // reversed since y-coordinates go from bottom to top
+    float xoffset = xpos - exec->lastX;
+    float yoffset = exec->lastY - ypos; // reversed since y-coordinates go from bottom to top
 
-    exec->_lastX = xpos;
-    exec->_lastY = ypos;
+    exec->lastX = xpos;
+    exec->lastY = ypos;
 
-    exec->_camera.ProcessMouseMovement(xoffset, yoffset);
+    exec->camera.ProcessMouseMovement(xoffset, yoffset);
 }
 
 // glfw: whenever the mouse scroll wheel scrolls, this callback is called
 // ----------------------------------------------------------------------
 void scroll_callback(GLFWwindow* window, double xoffset, double yoffset)
 {
-    exec->_camera.ProcessMouseScroll(yoffset);
+    exec->camera.ProcessMouseScroll(yoffset);
 }
