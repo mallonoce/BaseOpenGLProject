@@ -17,12 +17,12 @@
         int _run5();
     
     public: // camera stuff... should be global?
-        Camera _camera;
-        float _lastX;
-        float _lastY; 
-        bool _firstMouse;
-        float _deltaTime;
-        float _lastFrame;
+        Camera camera;
+        float lastX;
+        float lastY; 
+        bool firstMouse;
+        float deltaTime;
+        float lastFrame;
 
 
     };
