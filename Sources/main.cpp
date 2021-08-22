@@ -1,6 +1,6 @@
 // Local Headers
 #include "glitter.hpp"
-#include "ExecutionerLight.h"
+#include "ExecutionerAdvancedGL.h"
 
 // Standard Headers
 #include <cstdio>
@@ -13,7 +13,7 @@
 
 int main(/*int argc, char * argv[]*/) {
 
-    ExecutionerLight exec;
+    ExecutionerAdvancedGL exec;
 
-    return exec.runModelLoading();
+    return exec.runDepthBuffer();
 }

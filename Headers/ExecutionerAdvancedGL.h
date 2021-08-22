@@ -1,25 +1,19 @@
-#ifndef EXECUTIONER_LIGHT_H
-#define EXECUTIONER_LIGHT_H
+#ifndef EXECUTIONER_ADVANCED_GL_H
+#define EXECUTIONER_ADVANCED_GL_H
 
 // Local Headers
 #include "glitter.hpp"
 #include "camera.h"
-#include "Executioner.h"
+#include "ExecutionerLight.h"
 #include "GLFWManager.h"
 
-    class ExecutionerLight : public Executioner
+    class ExecutionerAdvancedGL : public ExecutionerLight
     {
     public:
-        enum class SCENE {NORMAL, DESERT, BIOCHEMICAL, FACTORY, HORROR};
-        
-        int run();
-        int runModelLoading();
-        SCENE scene =  SCENE::NORMAL;
-
-    private:
+        int runDepthBuffer();
+    protected:
         void processInputs(GLFWManager* glfwManager);
-        bool wireframe = false;
     };
 
 
-#endif //EXECUTIONER_LIGHT_H
+#endif //EXECUTIONER_ADVANCED_GL_H

@@ -16,7 +16,7 @@
         int runModelLoading();
         SCENE scene =  SCENE::NORMAL;
 
-    private:
+    protected:
         void processInputs(GLFWManager* glfwManager);
         bool wireframe = false;
     };
